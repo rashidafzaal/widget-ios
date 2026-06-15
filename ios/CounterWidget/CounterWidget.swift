@@ -1,58 +1,48 @@
-//
-//  CounterWidget.swift
-//  CounterWidget
-//
-//  Created by Rashid Afzaal on 15/06/2026.
-//
-
 import WidgetKit
 import SwiftUI
 
+struct CounterEntry: TimelineEntry {
+    let date: Date
+    let count: Int
+}
+
 struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), emoji: "😀")
+    func placeholder(in context: Context) -> CounterEntry {
+        CounterEntry(date: Date(), count: 0)
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let entry = SimpleEntry(date: Date(), emoji: "😀")
-        completion(entry)
+    func getSnapshot(in context: Context, completion: @escaping (CounterEntry) -> Void) {
+        completion(CounterEntry(date: Date(), count: readCount()))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        var entries: [SimpleEntry] = []
-
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, emoji: "😀")
-            entries.append(entry)
-        }
-
-        let timeline = Timeline(entries: entries, policy: .atEnd)
+    func getTimeline(in context: Context, completion: @escaping (Timeline<CounterEntry>) -> Void) {
+        let entry = CounterEntry(date: Date(), count: readCount())
+        let timeline = Timeline(entries: [entry], policy: .never)
         completion(timeline)
     }
 
-//    func relevances() async -> WidgetRelevances<Void> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
+    private func readCount() -> Int {
+        let appGroup = "group.com.rashidafzaal1718.widgetios.counter"
+        guard let containerURL = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroup
+        ) else { return 0 }
+        
+        let fileURL = containerURL.appendingPathComponent("count.txt")
+        guard let text = try? String(contentsOf: fileURL, encoding: .utf8) else { return 0 }
+        return Int(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+    }
 }
 
-struct SimpleEntry: TimelineEntry {
-    let date: Date
-    let emoji: String
-}
-
-struct CounterWidgetEntryView : View {
+struct CounterWidgetEntryView: View {
     var entry: Provider.Entry
 
     var body: some View {
         VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
-
-            Text("Emoji:")
-            Text(entry.emoji)
+            Text("Counter")
+                .font(.caption)
+                .foregroundColor(.gray)
+            Text("\(entry.count)")
+                .font(.system(size: 40, weight: .bold))
         }
     }
 }
@@ -62,23 +52,11 @@ struct CounterWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            if #available(iOS 17.0, *) {
-                CounterWidgetEntryView(entry: entry)
-                    .containerBackground(.fill.tertiary, for: .widget)
-            } else {
-                CounterWidgetEntryView(entry: entry)
-                    .padding()
-                    .background()
-            }
+            CounterWidgetEntryView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("My Widget")
-        .description("This is an example widget.")
+        .configurationDisplayName("Counter")
+        .description("Shows the current counter value.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
-}
-
-#Preview(as: .systemSmall) {
-    CounterWidget()
-} timeline: {
-    SimpleEntry(date: .now, emoji: "😀")
-    SimpleEntry(date: .now, emoji: "🤩")
 }
